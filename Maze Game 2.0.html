@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>미로 탈출 대전 - 1인 & 실시간 1:1 대전</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap');
+        * {
+            font-family: 'Pretendard', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glow-effect {
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.35);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen w-full flex flex-col justify-between overflow-x-hidden overflow-y-auto">
+
+    <header class="w-full px-4 py-3 glass-panel z-20 flex items-center justify-between shadow-lg flex-shrink-0 sticky top-0">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center font-black text-xl text-white shadow-md glow-effect">
+                🌀
+            </div>
+            <div>
+                <h1 class="font-extrabold text-base sm:text-lg tracking-tight bg-gradient-to-r from-cyan-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
+                    미로 탈출 대전 & 1인 플레이
+                </h1>
+                <p id="user-display" class="text-[10px] sm:text-xs text-slate-400">닉네임을 설정해주세요 (영어/숫자)</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 sm:gap-3">
+            <!-- Room Code Badge if active in multiplayer -->
+            <div id="header-room-badge" class="hidden px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-extrabold text-xs flex items-center gap-1.5">
+                <span>🚪 방:</span>
+                <span id="header-room-code" class="text-cyan-300 tracking-wider">--</span>
+            </div>
+
+            <!-- Username Auth Button -->
+            <button id="btn-auth-modal" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 shadow-md">
+                <i data-lucide="user" class="w-4 h-4"></i>
+                <span id="header-auth-label">닉네임 설정</span>
+            </button>
+
+            <!-- Current Stage Badge -->
+            <div class="px-3 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 font-extrabold text-xs sm:text-sm flex items-center gap-1">
+                <span>🎯 STAGE</span>
+                <span id="header-stage-num" class="text-cyan-300">1</span>
+            </div>
+
+            <!-- Coin Counter -->
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-xs sm:text-sm">
+                <span>🪙</span>
+                <span id="stat-coins">100</span>
+            </div>
+
+            <!-- Multiplayer Room Button -->
+            <button id="btn-room-modal" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 shadow-md">
+                <i data-lucide="users" class="w-4 h-4"></i>
+                <span>친구 대전 (방 생성/입장)</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 w-full relative flex flex-col items-center justify-center p-2 sm:p-4 overflow-hidden">
+        
+        <!-- Tab 1: Game View -->
+        <section id="tab-game" class="w-full h-full flex flex-col items-center justify-between max-w-6xl mx-auto">
+            
+            <!-- Game Top Status Bar -->
+            <div class="w-full flex items-center justify-between px-2 py-1 text-xs sm:text-sm font-semibold text-slate-300 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <span class="flex items-center gap-1 text-indigo-400">
+                        <i data-lucide="footprints" class="w-4 h-4"></i>
+                        <span id="game-steps">0</span> 걸음
+                    </span>
+                    <span class="flex items-center gap-1 text-cyan-400">
+                        <i data-lucide="clock" class="w-4 h-4"></i>
+                        <span id="game-timer">00:00</span>
+                    </span>
+                    <span id="host-badge-indicator" class="hidden px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/30">👑 방장(호스트)</span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button id="btn-sound-quick" class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+                        <i data-lucide="volume-2" id="icon-sound" class="w-4 h-4"></i>
+                    </button>
+                    <!-- Settings button visible in 1P, or Host-only in Multiplayer -->
+                    <button id="btn-open-settings" class="px-2.5 py-1.5 rounded-lg bg-indigo-600/90 hover:bg-indigo-500 text-white transition flex items-center gap-1.5 text-xs font-bold shadow-md">
+                        <i data-lucide="sliders" class="w-4 h-4"></i>
+                        <span id="settings-btn-label">단계 / 난이도 설정</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Multiplayer Live Match Status Banner (Hidden in 1P mode) -->
+            <div id="match-status-banner" class="hidden w-full max-w-6xl my-1 px-3 py-2 bg-emerald-950/60 rounded-xl border border-emerald-500/40 text-emerald-200 text-xs flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span id="match-info-text">실시간 1:1 미로 탈출 레이싱 진행 중!</span>
+                </div>
+                <div id="match-opponent-status" class="font-bold text-cyan-300">
+                    상대: 입장 대기 중...
+                </div>
+            </div>
+
+            <!-- Canvas Container: 1P Mode (Single Center Canvas) OR 2P Split Screen -->
+            <div id="game-canvas-container" class="w-full flex items-center justify-center my-2 max-w-6xl">
+                <!-- Single Player Box (Default) -->
+                <div id="single-canvas-box" class="glass-panel p-4 rounded-2xl flex flex-col items-center justify-center relative border border-indigo-500/40 shadow-xl w-full max-w-[420px]">
+                    <div class="w-full flex items-center justify-between mb-2 px-1">
+                        <span class="text-xs font-extrabold text-cyan-300 flex items-center gap-1.5">
+                            <span>🔵 탐험가 화면 (<span id="single-name-display">게스트</span>)</span>
+                        </span>
+                        <span id="single-progress-txt" class="text-[11px] text-slate-400">진행도: 0%</span>
+                    </div>
+                    <div id="canvas-wrapper-single" class="relative w-full aspect-square max-w-[380px] rounded-xl overflow-hidden bg-slate-900/90 flex items-center justify-center p-1 touch-none border border-slate-800">
+                        <canvas id="mazeCanvasSingle" class="block shadow-inner touch-none max-w-full aspect-square object-contain"></canvas>
+                    </div>
+                </div>
+
+                <!-- Split Screen Container (Only visible when in multiplayer room) -->
+                <div id="split-screen-wrapper" class="hidden w-full grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- My Canvas Box -->
+                    <div class="glass-panel p-3 rounded-2xl flex flex-col items-center justify-center relative border border-indigo-500/40 shadow-xl">
+                        <div class="w-full flex items-center justify-between mb-2 px-1">
+                            <span class="text-xs font-extrabold text-cyan-300 flex items-center gap-1.5">
+                                <span>🔵 본인 화면 (<span id="my-name-display">탐험가</span>)</span>
+                            </span>
+                            <span id="my-progress-txt" class="text-[11px] text-slate-400">진행도: 0%</span>
+                        </div>
+                        <div id="canvas-wrapper-my" class="relative w-full aspect-square max-w-[360px] rounded-xl overflow-hidden bg-slate-900/90 flex items-center justify-center p-1 touch-none border border-slate-800">
+                            <canvas id="mazeCanvasMy" class="block shadow-inner touch-none max-w-full aspect-square object-contain"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Opponent Canvas Box -->
+                    <div class="glass-panel p-3 rounded-2xl flex flex-col items-center justify-center relative border border-emerald-500/30 shadow-xl">
+                        <div class="w-full flex items-center justify-between mb-2 px-1">
+                            <span class="text-xs font-extrabold text-emerald-300 flex items-center gap-1.5">
+                                <span>🟢 친구(상대) 화면 (<span id="opponent-name-display">대기 중...</span>)</span>
+                            </span>
+                            <span id="opponent-progress-txt" class="text-[11px] text-slate-400">대기 중</span>
+                        </div>
+                        <div id="canvas-wrapper-opponent" class="relative w-full aspect-square max-w-[360px] rounded-xl overflow-hidden bg-slate-900/90 flex items-center justify-center p-1 touch-none border border-slate-800">
+                            <canvas id="mazeCanvasOpponent" class="block shadow-inner touch-none max-w-full aspect-square object-contain"></canvas>
+                            <div id="opponent-waiting-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4">
+                                <div class="w-8 h-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin mb-2"></div>
+                                <span class="text-xs text-emerald-300 font-bold">친구가 입장하면 실시간 화면이 공유됩니다!</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Virtual D-Pad -->
+            <div class="w-full flex flex-col items-center justify-center gap-1 my-1">
+                <div class="w-full max-w-md px-3 py-1 bg-indigo-950/40 rounded-xl border border-indigo-800/40 text-indigo-300 text-[11px] flex items-center justify-center gap-2 shadow-sm">
+                    <i data-lucide="hand" class="w-3.5 h-3.5 text-indigo-400 animate-bounce"></i>
+                    <span>방향 버튼 또는 키보드(화살표/WASD)로 미로를 탈출하세요!</span>
+                </div>
+
+                <div class="flex flex-col items-center justify-center gap-1">
+                    <button id="btn-ctrl-up" class="w-11 h-11 rounded-xl bg-slate-800/90 hover:bg-indigo-600 active:bg-indigo-700 text-indigo-300 hover:text-white border border-slate-700 flex items-center justify-center shadow-lg transition-transform active:scale-90">
+                        <i data-lucide="chevron-up" class="w-5 h-5"></i>
+                    </button>
+                    <div class="flex items-center gap-3">
+                        <button id="btn-ctrl-left" class="w-11 h-11 rounded-xl bg-slate-800/90 hover:bg-indigo-600 active:bg-indigo-700 text-indigo-300 hover:text-white border border-slate-700 flex items-center justify-center shadow-lg transition-transform active:scale-90">
+                            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                        </button>
+                        <button id="btn-ctrl-down" class="w-11 h-11 rounded-xl bg-slate-800/90 hover:bg-indigo-600 active:bg-indigo-700 text-indigo-300 hover:text-white border border-slate-700 flex items-center justify-center shadow-lg transition-transform active:scale-90">
+                            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                        </button>
+                        <button id="btn-ctrl-right" class="w-11 h-11 rounded-xl bg-slate-800/90 hover:bg-indigo-600 active:bg-indigo-700 text-indigo-300 hover:text-white border border-slate-700 flex items-center justify-center shadow-lg transition-transform active:scale-90">
+                            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 2: Shop & Themes -->
+        <section id="tab-shop" class="w-full h-full max-w-4xl mx-auto hidden flex-col overflow-y-auto p-2 sm:p-4">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-300">
+                <i data-lucide="shopping-bag" class="w-5 h-5"></i> 캐릭터 스킨 & 미로 테마 상점 (유저별 저장)
+            </h2>
+
+            <div class="mb-6">
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">캐릭터 스킨</h3>
+                <div id="grid-skins" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+            </div>
+
+            <div class="mb-6">
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">미로 테마</h3>
+                <div id="grid-themes" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+            </div>
+        </section>
+
+        <!-- Tab 3: Achievements & Stats -->
+        <section id="tab-stats" class="w-full h-full max-w-4xl mx-auto hidden flex-col overflow-y-auto p-2 sm:p-4">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-300">
+                <i data-lucide="trophy" class="w-5 h-5"></i> 유저 기록 및 업적
+            </h2>
+
+            <div id="user-profile-banner" class="glass-panel p-4 rounded-xl mb-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-indigo-600/40 border border-indigo-500 flex items-center justify-center text-xl font-black" id="profile-avatar">👤</div>
+                    <div>
+                        <div id="profile-name" class="font-bold text-sm text-white">게스트 탐험가</div>
+                        <div id="profile-email" class="text-xs text-slate-400">닉네임을 설정하여 코인과 기록을 저장하세요</div>
+                    </div>
+                </div>
+                <button id="btn-profile-action" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition">닉네임 설정</button>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                <div class="glass-panel p-4 rounded-xl text-center">
+                    <div class="text-xs text-slate-400">최고 달성 단계</div>
+                    <div id="stat-max-stage" class="text-2xl font-black text-indigo-400 mt-1">STAGE 1</div>
+                </div>
+                <div class="glass-panel p-4 rounded-xl text-center">
+                    <div class="text-xs text-slate-400">총 클리어 횟수</div>
+                    <div id="stat-wins" class="text-2xl font-black text-cyan-400 mt-1">0</div>
+                </div>
+                <div class="glass-panel p-4 rounded-xl text-center">
+                    <div class="text-xs text-slate-400">총 이동 걸음</div>
+                    <div id="stat-total-steps" class="text-2xl font-black text-purple-400 mt-1">0</div>
+                </div>
+                <div class="glass-panel p-4 rounded-xl text-center">
+                    <div class="text-xs text-slate-400">보유 코인</div>
+                    <div id="stat-coins-tab" class="text-2xl font-black text-amber-400 mt-1">100</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 4: Help & Info -->
+        <section id="tab-help" class="w-full h-full max-w-4xl mx-auto hidden flex-col overflow-y-auto p-2 sm:p-4 text-slate-300">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-300">
+                <i data-lucide="help-circle" class="w-5 h-5"></i> 게임 플레이 가이드
+            </h2>
+
+            <div class="glass-panel p-4 rounded-2xl space-y-4 text-sm">
+                <div>
+                    <h3 class="font-bold text-cyan-300 text-base mb-1">🎮 1인용 / 친구 대전 선택</h3>
+                    <p class="text-slate-400 mb-2">기본적으로 혼자서 스테이지를 클리어하며 코인과 상점 아이템을 모을 수 있습니다. 상단의 <strong>[친구 대전]</strong>을 누르면 방 코드가 생성되어 실시간 2인 레이싱이 활성화됩니다.</p>
+                </div>
+                <div>
+                    <h3 class="font-bold text-cyan-300 text-base mb-1">👑 호스트(방장) 난이도 제어</h3>
+                    <p class="text-slate-400 mb-2">방을 직접 생성한 호스트만 난이도 및 스테이지를 변경할 수 있으며, 변경된 미로는 두 사람 모두에게 즉시 동기화됩니다.</p>
+                </div>
+                <div>
+                    <h3 class="font-bold text-cyan-300 text-base mb-1">🪙 유저별 상점 데이터 저장</h3>
+                    <p class="text-slate-400">설정한 영어/숫자 닉네임마다 코인, 구입한 스킨(캐릭터 아이콘), 미로 테마가 개별 저장됩니다.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <nav class="w-full glass-panel border-t border-slate-800/80 px-4 py-2 flex items-center justify-around z-20 flex-shrink-0">
+        <button data-tab="tab-game" class="nav-tab-btn active text-indigo-400 flex flex-col items-center gap-1 text-xs font-semibold">
+            <i data-lucide="gamepad-2" class="w-5 h-5"></i>
+            <span>게임</span>
+        </button>
+        <button data-tab="tab-shop" class="nav-tab-btn text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 text-xs font-semibold">
+            <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+            <span>상점</span>
+        </button>
+        <button data-tab="tab-stats" class="nav-tab-btn text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 text-xs font-semibold">
+            <i data-lucide="trophy" class="w-5 h-5"></i>
+            <span>기록/업적</span>
+        </button>
+        <button data-tab="tab-help" class="nav-tab-btn text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 text-xs font-semibold">
+            <i data-lucide="help-circle" class="w-5 h-5"></i>
+            <span>도움말</span>
+        </button>
+    </nav>
+
+    <!-- Modal: Authentication (English & Number Only) -->
+    <div id="modal-auth" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="glass-panel w-full max-w-md rounded-2xl p-6 relative border border-slate-700 shadow-2xl">
+            <button class="modal-close absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <div id="auth-view-login">
+                <h3 class="text-xl font-extrabold text-white mb-2 text-center flex items-center justify-center gap-2">
+                    <i data-lucide="user" class="w-5 h-5 text-indigo-400"></i> 닉네임 설정 (영어, 숫자)
+                </h3>
+                <p class="text-xs text-slate-400 text-center mb-6">코인과 상점 아이템이 저장될 닉네임을 입력하세요.</p>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 mb-1">사용자 닉네임</label>
+                        <input type="text" id="auth-username" placeholder="예: player123" class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 font-mono">
+                    </div>
+                    <div id="auth-error-msg" class="text-xs text-red-400 text-center hidden"></div>
+                    <button id="btn-do-login" class="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 font-bold text-sm text-white shadow-lg transition">
+                        닉네임 저장 및 시작
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Room / Multiplayer Lobby -->
+    <div id="modal-room" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="glass-panel w-full max-w-md rounded-2xl p-6 relative border border-slate-700 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <button class="modal-close absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <h3 class="text-xl font-extrabold text-white mb-2 text-center flex items-center justify-center gap-2">
+                <i data-lucide="globe" class="w-5 h-5 text-emerald-400"></i> 친구 대전 (4자리 방 코드)
+            </h3>
+            <p class="text-xs text-slate-400 text-center mb-6">방을 생성하거나 친구의 4자리 코드를 입력하여 실시간 레이싱을 시작하세요!</p>
+
+            <div class="space-y-4">
+                <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex flex-col gap-2">
+                    <span class="text-xs font-bold text-slate-300">실시간 방 만들기 (내가 호스트가 됩니다)</span>
+                    <button id="btn-create-room" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold text-xs shadow transition flex items-center justify-center gap-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> 4자리 방 생성하기
+                    </button>
+                </div>
+
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-500/30 flex flex-col gap-2">
+                    <span class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                        <i data-lucide="share-2" class="w-4 h-4 text-cyan-400"></i> 초대 링크 복사
+                    </span>
+                    <div class="flex items-center gap-2 w-full">
+                        <input type="text" id="input-share-url" readonly class="w-full min-w-0 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-slate-300 text-xs font-mono">
+                        <button id="btn-copy-url" class="flex-shrink-0 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow transition flex items-center gap-1">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i> 복사
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex flex-col gap-2">
+                    <span class="text-xs font-bold text-slate-300">방 코드로 입장하기 (4자리 입력)</span>
+                    <div class="flex items-center gap-2 w-full">
+                        <input type="text" id="input-room-code" maxlength="4" placeholder="예: AB12" class="w-full min-w-0 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-sm uppercase tracking-widest focus:outline-none focus:border-emerald-500 font-bold font-mono text-center">
+                        <button id="btn-join-room" class="flex-shrink-0 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow transition">
+                            방 입장
+                        </button>
+                    </div>
+                </div>
+
+                <div id="active-room-card" class="hidden p-3 rounded-xl bg-emerald-950/40 border border-emerald-600/40 text-xs space-y-2">
+                    <div class="flex justify-between items-center text-emerald-300 font-bold">
+                        <span>현재 방 코드: <span id="display-active-code" class="text-cyan-300 text-sm tracking-wider font-mono">--</span></span>
+                        <button id="btn-copy-code" class="px-2 py-1 rounded bg-emerald-700/60 hover:bg-emerald-600 text-white text-[10px]">코드 복사</button>
+                    </div>
+                    <div class="text-slate-400" id="room-members-status">참가자 대기 중...</div>
+                    <button id="btn-leave-room" class="w-full py-1.5 rounded bg-red-600/80 hover:bg-red-500 text-white font-bold text-[11px]">대전 방 나가기 (1인용으로 전환)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Settings & Stage Selector -->
+    <div id="modal-settings" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="glass-panel w-full max-w-md rounded-2xl p-6 relative border border-slate-700 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <button class="modal-close absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <h3 class="text-xl font-extrabold text-white mb-2 text-center flex items-center justify-center gap-2">
+                <i data-lucide="sliders" class="w-5 h-5 text-indigo-400"></i> 단계 및 난이도 설정
+            </h3>
+            <p id="settings-subtitle" class="text-xs text-indigo-300 text-center mb-4 font-bold">🎯 원하는 스테이지와 미로 크기를 선택하세요.</p>
+
+            <div class="space-y-5" id="settings-controls-wrapper">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-2">단계 (Stage) 선택</label>
+                    <div id="stage-grid" class="grid grid-cols-5 gap-2"></div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-2">미로 크기</label>
+                    <div class="grid grid-cols-2 gap-2" id="group-difficulty">
+                        <button data-size="10" class="btn-diff p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-xs font-bold hover:border-indigo-500">입문 (10x10)</button>
+                        <button data-size="15" class="btn-diff p-2.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-300 text-xs font-bold">보통 (15x15)</button>
+                        <button data-size="20" class="btn-diff p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-xs font-bold hover:border-indigo-500">어려움 (20x20)</button>
+                        <button data-size="25" class="btn-diff p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-xs font-bold hover:border-indigo-500">극악 (25x25)</button>
+                    </div>
+                </div>
+
+                <button id="btn-apply-settings" class="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 font-bold text-sm text-white shadow-lg transition">
+                    변경 사항 적용 및 미로 새로고침
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Result / Clear -->
+    <div id="modal-result" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="glass-panel w-full max-w-sm rounded-2xl p-6 text-center relative border border-slate-700 shadow-2xl">
+            <div class="text-5xl mb-3 animate-bounce" id="res-icon">🎉</div>
+            <h3 class="text-2xl font-black text-white mb-1" id="res-title">STAGE CLEAR!</h3>
+            <p class="text-xs text-slate-400 mb-4" id="res-desc">성공적으로 미로를 탈출했습니다!</p>
+
+            <div class="glass-panel p-3.5 rounded-xl mb-6 space-y-2 text-xs">
+                <div class="flex justify-between text-slate-300">
+                    <span>클리어 단계:</span>
+                    <span id="res-stage" class="font-bold text-indigo-400">STAGE 1</span>
+                </div>
+                <div class="flex justify-between text-slate-300">
+                    <span>소요 시간:</span>
+                    <span id="res-time" class="font-bold text-cyan-400">00:00</span>
+                </div>
+                <div class="flex justify-between text-slate-300">
+                    <span>이동 걸음:</span>
+                    <span id="res-steps" class="font-bold text-purple-400">0</span>
+                </div>
+                <div class="flex justify-between text-slate-300">
+                    <span>획득 코인:</span>
+                    <span id="res-coins" class="font-bold text-amber-400">+100 코인</span>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button id="res-btn-retry" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 font-bold text-sm text-white shadow-lg transition">
+                    다음 스테이지 도전
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            signInWithCustomToken,
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+            }
+            playMove() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(320, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(160, this.ctx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.05);
+            }
+            playWin() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+                    gain.gain.setValueAtTime(0.15, now + idx * 0.1);
+                    gain.gain.linearRampToValueAtTime(0.01, now + idx * 0.1 + 0.3);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.1);
+                    osc.stop(now + idx * 0.1 + 0.3);
+                });
+            }
+        }
+
+        const sound = new SoundEngine();
+
+        const THEMES = [
+            { id: 'neon', name: '네온 사이버', wall: '#3b82f6', path: '#0f172a', bg: '#020617' },
+            { id: 'dungeon', name: '고대 던전', wall: '#64748b', path: '#1e293b', bg: '#090d16' },
+            { id: 'ocean', name: '심해 해저', wall: '#06b6d4', path: '#083344', bg: '#02121e' },
+            { id: 'forest', name: '신비 숲', wall: '#10b981', path: '#064e3b', bg: '#022c22' }
+        ];
+
+        const SKINS = [
+            { id: 'explorer', name: '기본 탐험가', icon: '🔵', price: 0 },
+            { id: 'robot', name: '사이버 로봇', icon: '🤖', price: 150 },
+            { id: 'ninja', name: '닌자', icon: '🥷', price: 300 },
+            { id: 'alien', name: '외계인', icon: '👽', price: 500 },
+            { id: 'ghost', name: '유령', icon: '👻', price: 800 }
+        ];
+
+        class Game {
+            constructor() {
+                this.canvasSingle = document.getElementById('mazeCanvasSingle');
+                this.ctxSingle = this.canvasSingle.getContext('2d');
+
+                this.canvasMy = document.getElementById('mazeCanvasMy');
+                this.ctxMy = this.canvasMy.getContext('2d');
+                
+                this.canvasOpp = document.getElementById('mazeCanvasOpponent');
+                this.ctxOpp = this.canvasOpp.getContext('2d');
+                
+                this.stage = 1;
+                this.maxUnlockedStage = 1;
+                this.size = 10;
+                
+                this.pendingStage = 1;
+                this.pendingSize = null;
+
+                this.username = 'Explorer';
+                this.coins = 100;
+                this.wins = 0;
+                this.totalSteps = 0;
+                this.currentTheme = 'neon';
+                this.currentSkin = 'explorer';
+                this.unlockedSkins = ['explorer'];
+                this.unlockedThemes = ['neon'];
+
+                this.player = { r: 0, c: 0, px: 0, py: 0 };
+                this.opponent = { r: 0, c: 0, px: 0, py: 0, name: '상대', steps: 0, finished: false };
+                
+                this.steps = 0;
+                this.timer = 0;
+                this.timerInterval = null;
+                
+                this.maze = null;
+                this.sharedMazeSeed = 12345;
+
+                this.roomCode = null;
+                this.isHost = false;
+                this.db = null;
+                this.auth = null;
+                this.userId = null;
+                this.unsubscribeRoom = null;
+
+                this.loadUserDataLocally(this.username);
+                this.initFirebase();
+                this.initUI();
+                this.initEvents();
+                this.setupControls();
+                this.checkUrlRoomParam();
+                this.loadStage(1);
+
+                window.addEventListener('resize', () => this.resizeCanvas());
+                setTimeout(() => this.resizeCanvas(), 100);
+            }
+
+            loadUserDataLocally(name) {
+                const saved = localStorage.getItem(`maze_user_${name}`);
+                if (saved) {
+                    try {
+                        const data = JSON.parse(saved);
+                        this.coins = data.coins ?? 100;
+                        this.wins = data.wins ?? 0;
+                        this.totalSteps = data.totalSteps ?? 0;
+                        this.maxUnlockedStage = data.maxUnlockedStage ?? 1;
+                        this.currentSkin = data.currentSkin ?? 'explorer';
+                        this.currentTheme = data.currentTheme ?? 'neon';
+                        this.unlockedSkins = data.unlockedSkins ?? ['explorer'];
+                        this.unlockedThemes = data.unlockedThemes ?? ['neon'];
+                    } catch (e) {}
+                } else {
+                    this.coins = 100;
+                    this.wins = 0;
+                    this.totalSteps = 0;
+                    this.maxUnlockedStage = 1;
+                    this.currentSkin = 'explorer';
+                    this.currentTheme = 'neon';
+                    this.unlockedSkins = ['explorer'];
+                    this.unlockedThemes = ['neon'];
+                }
+                this.updateStatsUI();
+                this.renderShop();
+            }
+
+            saveUserDataLocally() {
+                const data = {
+                    coins: this.coins,
+                    wins: this.wins,
+                    totalSteps: this.totalSteps,
+                    maxUnlockedStage: this.maxUnlockedStage,
+                    currentSkin: this.currentSkin,
+                    currentTheme: this.currentTheme,
+                    unlockedSkins: this.unlockedSkins,
+                    unlockedThemes: this.unlockedThemes
+                };
+                localStorage.setItem(`maze_user_${this.username}`, JSON.stringify(data));
+            }
+
+            initFirebase() {
+                try {
+                    const defaultFirebaseConfig = {
+                        apiKey: "AIzaSyD-PlaceholderKeyForGitHubDemo",
+                        authDomain: "maze-escape.firebaseapp.com",
+                        projectId: "maze-escape",
+                        storageBucket: "maze-escape.appspot.com",
+                        messagingSenderId: "123456789012",
+                        appId: "1:123456789012:web:abcdef1234567890"
+                    };
+
+                    let firebaseConfig = defaultFirebaseConfig;
+                    if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                        try {
+                            firebaseConfig = JSON.parse(__firebase_config);
+                        } catch (err) {}
+                    }
+
+                    const app = initializeApp(firebaseConfig);
+                    this.auth = getAuth(app);
+                    this.db = getFirestore(app);
+
+                    const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                    if (token) {
+                        signInWithCustomToken(this.auth, token).catch(() => signInAnonymously(this.auth));
+                    } else {
+                        signInAnonymously(this.auth).catch(() => {});
+                    }
+
+                    onAuthStateChanged(this.auth, (user) => {
+                        if (user) {
+                            this.userId = user.uid;
+                        }
+                    });
+                } catch (e) {
+                    this.userId = 'local_' + Math.random().toString(36).substring(2, 9);
+                }
+            }
+
+            checkUrlRoomParam() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const roomParam = urlParams.get('room');
+                const shareInput = document.getElementById('input-share-url');
+                if (shareInput) {
+                    shareInput.value = window.location.href.split('?')[0];
+                }
+                if (roomParam) {
+                    setTimeout(() => {
+                        this.joinRoom(roomParam);
+                    }, 1000);
+                }
+            }
+
+            initUI() {
+                try {
+                    if (typeof lucide !== 'undefined' && lucide && lucide.createIcons) {
+                        lucide.createIcons();
+                    }
+                } catch (e) {}
+                this.renderStageGrid();
+                this.updateStatsUI();
+                this.renderShop();
+            }
+
+            renderStageGrid() {
+                const grid = document.getElementById('stage-grid');
+                if (!grid) return;
+                let html = '';
+                for (let i = 1; i <= 20; i++) {
+                    const current = i === this.pendingStage;
+                    let cls = 'p-2 rounded-xl text-xs font-bold border transition ';
+                    if (current) cls += 'bg-indigo-600 border-cyan-400 text-white shadow-md';
+                    else cls += 'bg-slate-900 border-slate-700 text-indigo-300 hover:border-indigo-500';
+
+                    html += `<button onclick="window.game.selectPendingStage(${i})" class="${cls}">${i}</button>`;
+                }
+                grid.innerHTML = html;
+            }
+
+            selectPendingStage(stg) {
+                if (this.roomCode && !this.isHost) {
+                    return;
+                }
+                this.pendingStage = stg;
+                this.pendingSize = this.calculateStageSize(stg);
+                this.renderStageGrid();
+            }
+
+            calculateStageSize(stg) {
+                return Math.min(25, 8 + Math.floor(stg * 0.7));
+            }
+
+            loadStage(stg, customSize = null, seed = null) {
+                this.stage = stg;
+                this.size = customSize || this.calculateStageSize(stg);
+                if (seed) this.sharedMazeSeed = seed;
+                else this.sharedMazeSeed = Math.floor(Math.random() * 100000);
+
+                document.getElementById('header-stage-num').innerText = stg;
+                this.generateMazeWithSeed(this.sharedMazeSeed);
+
+                this.player.r = 0;
+                this.player.c = 0;
+                this.player.px = 0;
+                this.player.py = 0;
+                this.steps = 0;
+                this.timer = 0;
+                this.playerFinished = false;
+
+                document.getElementById('game-steps').innerText = '0';
+                document.getElementById('game-timer').innerText = '00:00';
+
+                if (this.timerInterval) clearInterval(this.timerInterval);
+                this.timerInterval = setInterval(() => {
+                    this.timer++;
+                    const m = String(Math.floor(this.timer / 60)).padStart(2, '0');
+                    const sec = String(this.timer % 60).padStart(2, '0');
+                    document.getElementById('game-timer').innerText = `${m}:${sec}`;
+                    
+                    if (this.roomCode && this.db) {
+                        this.syncRoomState();
+                    }
+                }, 1000);
+
+                this.resizeCanvas();
+            }
+
+            generateMazeWithSeed(seed) {
+                let sVal = seed;
+                const random = () => {
+                    sVal = (sVal * 9301 + 49297) % 233280;
+                    return sVal / 233280;
+                };
+
+                const s = this.size;
+                const grid = Array.from({ length: s }, (_, r) =>
+                    Array.from({ length: s }, (_, c) => ({
+                        r, c, walls: [true, true, true, true]
+                    }))
+                );
+
+                const stack = [];
+                const visited = new Array(s).fill(false).map(() => new Array(s).fill(false));
+                let curr = grid[0][0];
+                visited[0][0] = true;
+
+                while (true) {
+                    const neighbors = [];
+                    const { r, c } = curr;
+
+                    if (r > 0 && !visited[r - 1][c]) neighbors.push({ cell: grid[r - 1][c], dir: 0 });
+                    if (c < s - 1 && !visited[r][c + 1]) neighbors.push({ cell: grid[r][c + 1], dir: 1 });
+                    if (r < s - 1 && !visited[r + 1][c]) neighbors.push({ cell: grid[r + 1][c], dir: 2 });
+                    if (c > 0 && !visited[r][c - 1]) neighbors.push({ cell: grid[r][c - 1], dir: 3 });
+
+                    if (neighbors.length > 0) {
+                        const next = neighbors[Math.floor(random() * neighbors.length)];
+                        curr.walls[next.dir] = false;
+                        next.cell.walls[(next.dir + 2) % 4] = false;
+                        stack.push(curr);
+                        curr = next.cell;
+                        visited[curr.r][curr.c] = true;
+                    } else if (stack.length > 0) {
+                        curr = stack.pop();
+                    } else {
+                        break;
+                    }
+                }
+                this.maze = grid;
+            }
+
+            setupControls() {
+                window.addEventListener('keydown', (e) => {
+                    if (['ArrowUp', 'w', 'W'].includes(e.key)) { e.preventDefault(); this.movePlayer(-1, 0); }
+                    if (['ArrowDown', 's', 'S'].includes(e.key)) { e.preventDefault(); this.movePlayer(1, 0); }
+                    if (['ArrowLeft', 'a', 'A'].includes(e.key)) { e.preventDefault(); this.movePlayer(0, -1); }
+                    if (['ArrowRight', 'd', 'D'].includes(e.key)) { e.preventDefault(); this.movePlayer(0, 1); }
+                });
+
+                document.getElementById('btn-ctrl-up')?.addEventListener('click', () => this.movePlayer(-1, 0));
+                document.getElementById('btn-ctrl-down')?.addEventListener('click', () => this.movePlayer(1, 0));
+                document.getElementById('btn-ctrl-left')?.addEventListener('click', () => this.movePlayer(0, -1));
+                document.getElementById('btn-ctrl-right')?.addEventListener('click', () => this.movePlayer(0, 1));
+            }
+
+            movePlayer(dr, dc) {
+                if (!this.maze || this.playerFinished) return false;
+                const { r, c } = this.player;
+                const cell = this.maze[r] && this.maze[r][c];
+                if (!cell) return false;
+
+                if (dr === -1 && cell.walls[0]) return false;
+                if (dc === 1 && cell.walls[1]) return false;
+                if (dr === 1 && cell.walls[2]) return false;
+                if (dc === -1 && cell.walls[3]) return false;
+
+                const nr = r + dr;
+                const nc = c + dc;
+                if (nr < 0 || nr >= this.size || nc < 0 || nc >= this.size) return false;
+
+                this.player.r = nr;
+                this.player.c = nc;
+                this.steps++;
+                this.totalSteps++;
+                document.getElementById('game-steps').innerText = this.steps;
+                sound.playMove();
+
+                const totalCells = this.size * this.size;
+                const visitedApprox = Math.min(100, Math.round(((nr * this.size + nc) / totalCells) * 100));
+                
+                if (this.roomCode) {
+                    document.getElementById('my-progress-txt').innerText = `진행도: ${visitedApprox}%`;
+                } else {
+                    document.getElementById('single-progress-txt').innerText = `진행도: ${visitedApprox}%`;
+                }
+
+                if (nr === this.size - 1 && nc === this.size - 1) {
+                    this.gameWin(true);
+                }
+
+                if (this.roomCode && this.db) {
+                    this.syncRoomState();
+                }
+
+                this.saveUserDataLocally();
+                return true;
+            }
+
+            async createRoom() {
+                if (!this.db || !this.userId) {
+                    this.showToast('❌ 네트워크 연결을 확인해주세요.');
+                    return;
+                }
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                let code = '';
+                for (let i = 0; i < 4; i++) {
+                    code += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+
+                this.roomCode = code;
+                this.isHost = true;
+                
+                // Activate Split Screen UI
+                document.getElementById('single-canvas-box').classList.add('hidden');
+                document.getElementById('split-screen-wrapper').classList.remove('hidden');
+                document.getElementById('host-badge-indicator').classList.remove('hidden');
+                document.getElementById('settings-btn-label').innerText = '난이도 설정 (호스트)';
+
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'maze-multiplayer-app';
+                const roomRef = doc(this.db, 'artifacts', appId, 'public', 'data', `room_${code}`);
+
+                try {
+                    await setDoc(roomRef, {
+                        code: code,
+                        host: this.userId,
+                        stage: this.stage,
+                        size: this.size,
+                        seed: this.sharedMazeSeed,
+                        status: 'waiting',
+                        createdAt: Date.now(),
+                        players: {
+                            [this.userId]: { name: this.username, r: 0, c: 0, steps: 0, finished: false, time: '00:00' }
+                        }
+                    });
+
+                    this.listenRoom(code);
+                    document.getElementById('active-room-card').classList.remove('hidden');
+                    document.getElementById('display-active-code').innerText = code;
+                    document.getElementById('header-room-badge').classList.remove('hidden');
+                    document.getElementById('header-room-code').innerText = code;
+                    document.getElementById('match-status-banner').classList.remove('hidden');
+                    document.getElementById('room-members-status').innerText = '친구 대기 중... (코드를 공유하세요)';
+                    
+                    const shareInput = document.getElementById('input-share-url');
+                    if (shareInput) {
+                        const baseUrl = window.location.href.split('?')[0];
+                        shareInput.value = `${baseUrl}?room=${code}`;
+                    }
+
+                    this.closeModal('modal-room');
+                } catch (e) {
+                    this.showToast('❌ 방 생성 오류 발생');
+                }
+            }
+
+            async joinRoom(code) {
+                if (!code) return;
+                code = code.trim().toUpperCase();
+                if (code.length !== 4) return;
+
+                if (!this.db || !this.userId) return;
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'maze-multiplayer-app';
+                const roomRef = doc(this.db, 'artifacts', appId, 'public', 'data', `room_${code}`);
+
+                try {
+                    const snap = await getDoc(roomRef);
+                    if (!snap.exists()) return;
+
+                    const data = snap.data();
+                    this.roomCode = code;
+                    this.isHost = (data.host === this.userId);
+                    
+                    // Activate Split Screen UI
+                    document.getElementById('single-canvas-box').classList.add('hidden');
+                    document.getElementById('split-screen-wrapper').classList.remove('hidden');
+
+                    if (this.isHost) {
+                        document.getElementById('host-badge-indicator').classList.remove('hidden');
+                        document.getElementById('settings-btn-label').innerText = '난이도 설정 (호스트)';
+                    } else {
+                        document.getElementById('host-badge-indicator').classList.add('hidden');
+                        document.getElementById('settings-btn-label').innerText = '단계 / 난이도 (방장 전용)';
+                    }
+
+                    this.stage = data.stage || 1;
+                    this.size = data.size || 10;
+                    this.sharedMazeSeed = data.seed || 12345;
+
+                    const players = data.players || {};
+                    players[this.userId] = { name: this.username, r: 0, c: 0, steps: 0, finished: false, time: '00:00' };
+
+                    await updateDoc(roomRef, { players });
+
+                    this.loadStage(this.stage, this.size, this.sharedMazeSeed);
+                    this.listenRoom(code);
+
+                    document.getElementById('active-room-card').classList.remove('hidden');
+                    document.getElementById('display-active-code').innerText = code;
+                    document.getElementById('header-room-badge').classList.remove('hidden');
+                    document.getElementById('header-room-code').innerText = code;
+                    document.getElementById('match-status-banner').classList.remove('hidden');
+
+                    this.closeModal('modal-room');
+                } catch (e) {}
+            }
+
+            listenRoom(code) {
+                if (this.unsubscribeRoom) this.unsubscribeRoom();
+                if (!this.db) return;
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'maze-multiplayer-app';
+                const roomRef = doc(this.db, 'artifacts', appId, 'public', 'data', `room_${code}`);
+
+                try {
+                    this.unsubscribeRoom = onSnapshot(roomRef, (docSnap) => {
+                        if (!docSnap.exists()) return;
+                        const data = docSnap.data();
+                        
+                        if (data.stage && (data.stage !== this.stage || data.size !== this.size)) {
+                            this.stage = data.stage;
+                            this.size = data.size;
+                            this.sharedMazeSeed = data.seed || 12345;
+                            this.loadStage(this.stage, this.size, this.sharedMazeSeed);
+                        }
+
+                        const players = data.players || {};
+                        let opponentFound = false;
+
+                        for (const [uid, pInfo] of Object.entries(players)) {
+                            if (uid !== this.userId) {
+                                opponentFound = true;
+                                this.opponent.name = pInfo.name || '친구';
+                                this.opponent.r = pInfo.r || 0;
+                                this.opponent.c = pInfo.c || 0;
+                                this.opponent.steps = pInfo.steps || 0;
+                                this.opponent.finished = pInfo.finished || false;
+
+                                document.getElementById('opponent-name-display').innerText = this.opponent.name;
+                                document.getElementById('opponent-waiting-overlay').classList.add('hidden');
+                                
+                                const totalCells = this.size * this.size;
+                                const oppApprox = Math.min(100, Math.round(((this.opponent.r * this.size + this.opponent.c) / totalCells) * 100));
+                                document.getElementById('opponent-progress-txt').innerText = `진행도: ${oppApprox}% (${this.opponent.steps}걸음)`;
+
+                                if (this.opponent.finished && !this.playerFinished) {
+                                    this.gameWin(false);
+                                }
+                            }
+                        }
+
+                        if (!opponentFound) {
+                            document.getElementById('opponent-waiting-overlay').classList.remove('hidden');
+                            document.getElementById('opponent-name-display').innerText = '대기 중...';
+                            document.getElementById('room-members-status').innerText = '참가자 대기 중... (코드를 공유하세요)';
+                        } else {
+                            document.getElementById('room-members-status').innerText = `상대 [${this.opponent.name}] 접속 중! 실시간 대전 활성화`;
+                        }
+                    }, (err) => {});
+                } catch (e) {}
+            }
+
+            async syncRoomState() {
+                if (!this.roomCode || !this.db || !this.userId) return;
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'maze-multiplayer-app';
+                const roomRef = doc(this.db, 'artifacts', appId, 'public', 'data', `room_${this.roomCode}`);
+                try {
+                    const snap = await getDoc(roomRef);
+                    if (snap.exists()) {
+                        const data = snap.data();
+                        const players = data.players || {};
+                        if (players[this.userId]) {
+                            players[this.userId].r = this.player.r;
+                            players[this.userId].c = this.player.c;
+                            players[this.userId].steps = this.steps;
+                            await updateDoc(roomRef, { players });
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            async gameWin(isMeFirst) {
+                if (this.timerInterval) clearInterval(this.timerInterval);
+                this.playerFinished = true;
+                sound.playWin();
+
+                let rewardCoins = 100 + (this.stage * 20);
+                if (this.roomCode && !isMeFirst) {
+                    rewardCoins = 30; // Loser reward in multiplayer
+                }
+
+                this.coins += rewardCoins;
+                this.wins++;
+                if (this.stage >= this.maxUnlockedStage && this.stage < 20) {
+                    this.maxUnlockedStage = this.stage + 1;
+                }
+                this.saveUserDataLocally();
+                this.updateStatsUI();
+
+                if (this.roomCode) {
+                    if (isMeFirst) {
+                        document.getElementById('res-icon').innerText = '🎉';
+                        document.getElementById('res-title').innerText = 'VICTORY (승리)!';
+                        document.getElementById('res-desc').innerText = '상대보다 먼저 미로를 탈출하여 승리했습니다!';
+                    } else {
+                        document.getElementById('res-icon').innerText = '😢';
+                        document.getElementById('res-title').innerText = 'DEFEAT (패배)';
+                        document.getElementById('res-desc').innerText = '친구가 먼저 출구에 도착했습니다!';
+                    }
+                } else {
+                    document.getElementById('res-icon').innerText = '🎉';
+                    document.getElementById('res-title').innerText = `STAGE ${this.stage} CLEAR!`;
+                    document.getElementById('res-desc').innerText = '미로를 성공적으로 탈출했습니다!';
+                }
+
+                const timeStr = document.getElementById('game-timer').innerText;
+                document.getElementById('res-stage').innerText = `STAGE ${this.stage}`;
+                document.getElementById('res-time').innerText = timeStr;
+                document.getElementById('res-steps').innerText = this.steps;
+                document.getElementById('res-coins').innerText = `+${rewardCoins} 코인`;
+
+                if (this.roomCode && this.db && isMeFirst) {
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'maze-multiplayer-app';
+                    const roomRef = doc(this.db, 'artifacts', appId, 'public', 'data', `room_${this.roomCode}`);
+                    try {
+                        const snap = await getDoc(roomRef);
+                        if (snap.exists()) {
+                            const data = snap.data();
+                            const players = data.players || {};
+                            if (players[this.userId]) {
+                                players[this.userId].finished = true;
+                                players[this.userId].time = timeStr;
+                                await updateDoc(roomRef, { players });
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                this.openModal('modal-result');
+            }
+
+            leaveRoom() {
+                if (this.unsubscribeRoom) {
+                    this.unsubscribeRoom();
+                    this.unsubscribeRoom = null;
+                }
+                this.roomCode = null;
+                this.isHost = false;
+
+                // Revert to Single Player UI
+                document.getElementById('split-screen-wrapper').classList.add('hidden');
+                document.getElementById('single-canvas-box').classList.remove('hidden');
+                document.getElementById('host-badge-indicator').classList.add('hidden');
+                document.getElementById('active-room-card').classList.add('hidden');
+                document.getElementById('header-room-badge').classList.add('hidden');
+                document.getElementById('match-status-banner').classList.add('hidden');
+                document.getElementById('settings-btn-label').innerText = '단계 / 난이도 설정';
+
+                this.loadStage(this.stage);
+                this.closeModal('modal-room');
+            }
+
+            renderShop() {
+                const skinGrid = document.getElementById('grid-skins');
+                const themeGrid = document.getElementById('grid-themes');
+                if (!skinGrid || !themeGrid) return;
+
+                let skinHtml = '';
+                SKINS.forEach(skin => {
+                    const owned = this.unlockedSkins.includes(skin.id);
+                    const equipped = this.currentSkin === skin.id;
+                    let btnText = owned ? (equipped ? '장착중' : '장착') : `${skin.price} 코인`;
+                    let btnClass = equipped ? 'bg-emerald-600 text-white' : (owned ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-amber-600 hover:bg-amber-500 text-white');
+
+                    skinHtml += `
+                        <div class="glass-panel p-3 rounded-xl flex flex-col items-center justify-between text-center border ${equipped ? 'border-emerald-500' : 'border-slate-800'}">
+                            <div class="text-3xl mb-1">${skin.icon}</div>
+                            <div class="font-bold text-xs text-white mb-1">${skin.name}</div>
+                            <button onclick="window.game.buyOrEquipSkin('${skin.id}')" class="w-full py-1.5 rounded-lg text-xs font-bold ${btnClass} transition">${btnText}</button>
+                        </div>
+                    `;
+                });
+                skinGrid.innerHTML = skinHtml;
+
+                let themeHtml = '';
+                THEMES.forEach(th => {
+                    const owned = this.unlockedThemes.includes(th.id);
+                    const equipped = this.currentTheme === th.id;
+                    let btnText = owned ? (equipped ? '장착중' : '장착') : `200 코인`;
+                    let btnClass = equipped ? 'bg-emerald-600 text-white' : (owned ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-amber-600 hover:bg-amber-500 text-white');
+
+                    themeHtml += `
+                        <div class="glass-panel p-3 rounded-xl flex flex-col items-center justify-between text-center border ${equipped ? 'border-emerald-500' : 'border-slate-800'}" style="background-color: ${th.bg}">
+                            <div class="w-8 h-8 rounded-full mb-1 border border-white/20" style="background-color: ${th.wall}"></div>
+                            <div class="font-bold text-xs text-white mb-1">${th.name}</div>
+                            <button onclick="window.game.buyOrEquipTheme('${th.id}')" class="w-full py-1.5 rounded-lg text-xs font-bold ${btnClass} transition">${btnText}</button>
+                        </div>
+                    `;
+                });
+                themeGrid.innerHTML = themeHtml;
+            }
+
+            buyOrEquipSkin(id) {
+                const skin = SKINS.find(s => s.id === id);
+                if (!skin) return;
+
+                if (this.unlockedSkins.includes(id)) {
+                    this.currentSkin = id;
+                } else {
+                    if (this.coins >= skin.price) {
+                        this.coins -= skin.price;
+                        this.unlockedSkins.push(id);
+                        this.currentSkin = id;
+                        this.updateStatsUI();
+                    } else {
+                        return;
+                    }
+                }
+                this.saveUserDataLocally();
+                this.renderShop();
+            }
+
+            buyOrEquipTheme(id) {
+                const price = 200;
+                if (this.unlockedThemes.includes(id)) {
+                    this.currentTheme = id;
+                } else {
+                    if (this.coins >= price) {
+                        this.coins -= price;
+                        this.unlockedThemes.push(id);
+                        this.currentTheme = id;
+                        this.updateStatsUI();
+                    } else {
+                        return;
+                    }
+                }
+                this.saveUserDataLocally();
+                this.renderShop();
+            }
+
+            initEvents() {
+                document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.nav-tab-btn').forEach(b => {
+                            b.classList.remove('active', 'text-indigo-400');
+                            b.classList.add('text-slate-400');
+                        });
+                        btn.classList.add('active', 'text-indigo-400');
+                        btn.classList.remove('text-slate-400');
+
+                        const tabId = btn.dataset.tab;
+                        ['tab-game', 'tab-shop', 'tab-stats', 'tab-help'].forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el) {
+                                el.classList.add('hidden');
+                                el.classList.remove('flex');
+                            }
+                        });
+                        const target = document.getElementById(tabId);
+                        if (target) {
+                            target.classList.remove('hidden');
+                            target.classList.add('flex');
+                        }
+                        if (tabId === 'tab-game') setTimeout(() => this.resizeCanvas(), 50);
+                    });
+                });
+
+                document.getElementById('btn-auth-modal').addEventListener('click', () => this.openModal('modal-auth'));
+                document.getElementById('btn-profile-action').addEventListener('click', () => this.openModal('modal-auth'));
+
+                document.getElementById('btn-do-login').addEventListener('click', () => {
+                    const rawInput = document.getElementById('auth-username').value.trim();
+                    const errEl = document.getElementById('auth-error-msg');
+                    const regex = /^[A-Za-z0-9]+$/;
+                    if (!rawInput || !regex.test(rawInput)) {
+                        errEl.innerText = "닉네임은 영어와 숫자 조합만 가능합니다.";
+                        errEl.classList.remove('hidden');
+                        return;
+                    }
+                    errEl.classList.add('hidden');
+                    this.username = rawInput;
+                    this.loadUserDataLocally(this.username);
+
+                    document.getElementById('my-name-display').innerText = rawInput;
+                    document.getElementById('single-name-display').innerText = rawInput;
+                    document.getElementById('user-display').innerText = `접속 ID: ${rawInput}`;
+                    document.getElementById('profile-name').innerText = rawInput;
+                    document.getElementById('profile-email').innerText = '데이터 저장 활성화됨';
+                    this.closeModal('modal-auth');
+                });
+
+                document.getElementById('btn-room-modal').addEventListener('click', () => {
+                    const shareInput = document.getElementById('input-share-url');
+                    if (shareInput) {
+                        const baseUrl = window.location.href.split('?')[0];
+                        shareInput.value = this.roomCode ? `${baseUrl}?room=${this.roomCode}` : baseUrl;
+                    }
+                    this.openModal('modal-room');
+                });
+
+                document.getElementById('btn-create-room').addEventListener('click', () => this.createRoom());
+
+                document.getElementById('btn-copy-url').addEventListener('click', () => {
+                    const shareInput = document.getElementById('input-share-url');
+                    if (shareInput) {
+                        shareInput.select();
+                        document.execCommand('copy');
+                    }
+                });
+
+                document.getElementById('btn-join-room').addEventListener('click', () => {
+                    const code = document.getElementById('input-room-code').value;
+                    if (code) this.joinRoom(code);
+                });
+
+                document.getElementById('btn-leave-room').addEventListener('click', () => this.leaveRoom());
+                document.getElementById('btn-copy-code').addEventListener('click', () => {
+                    if (this.roomCode) {
+                        const dummy = document.createElement('input');
+                        document.body.appendChild(dummy);
+                        dummy.value = this.roomCode;
+                        dummy.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(dummy);
+                    }
+                });
+
+                document.getElementById('btn-open-settings').addEventListener('click', () => {
+                    if (this.roomCode && !this.isHost) {
+                        return;
+                    }
+                    this.pendingStage = this.stage;
+                    this.pendingSize = null;
+                    this.renderStageGrid();
+                    this.openModal('modal-settings');
+                });
+
+                document.querySelectorAll('.modal-close').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const modal = e.target.closest('.fixed');
+                        if (modal) this.closeModal(modal.id);
+                    });
+                });
+
+                document.querySelectorAll('.btn-diff').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.pendingSize = parseInt(btn.dataset.size);
+                        document.querySelectorAll('.btn-diff').forEach(b => b.className = 'btn-diff p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-xs font-bold hover:border-indigo-500');
+                        btn.className = 'btn-diff p-2.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-300 text-xs font-bold';
+                    });
+                });
+
+                document.getElementById('btn-apply-settings').addEventListener('click', async () => {
+                    this.closeModal('modal-settings');
+                    const newStage = this.pendingStage;
+                    const newSize = this.pendingSize || this.calculateStageSize(newStage);
+                    const newSeed = Math.floor(Math.random() * 100000);
+
+                    this.loadStage(newStage, newSize, newSeed);
+
+                    if (this.roomCode && this.isHost && this.db) {
+                        const appId = typeof __app_id !== 'undefined' ? __app_id : 'maze-multiplayer-app';
+                        const roomRef = doc(this.db, 'artifacts', appId, 'public', 'data', `room_${this.roomCode}`);
+                        try {
+                            await updateDoc(roomRef, {
+                                stage: newStage,
+                                size: newSize,
+                                seed: newSeed
+                            });
+                        } catch (e) {}
+                    }
+                });
+
+                document.getElementById('res-btn-retry').addEventListener('click', () => {
+                    this.closeModal('modal-result');
+                    this.playerFinished = false;
+                    let nextStg = this.stage;
+                    if (!this.roomCode && this.stage < 20) {
+                        nextStg = this.stage + 1;
+                    }
+                    this.loadStage(nextStg);
+                });
+            }
+
+            openModal(id) {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.classList.remove('opacity-0', 'pointer-events-none');
+                    el.classList.add('opacity-100');
+                }
+            }
+
+            closeModal(id) {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.classList.add('opacity-0', 'pointer-events-none');
+                    el.classList.remove('opacity-100');
+                }
+            }
+
+            updateStatsUI() {
+                document.getElementById('stat-coins').innerText = this.coins;
+                document.getElementById('stat-coins-tab').innerText = this.coins;
+                document.getElementById('stat-wins').innerText = this.wins;
+                document.getElementById('stat-total-steps').innerText = this.totalSteps;
+                document.getElementById('stat-max-stage').innerText = `STAGE ${this.maxUnlockedStage}`;
+            }
+
+            resizeCanvas() {
+                const theme = THEMES.find(t => t.id === this.currentTheme) || THEMES[0];
+                const mazeSize = (this.maze && this.maze.length) ? this.maze.length : this.size;
+
+                if (!this.roomCode) {
+                    const wrapper = document.getElementById('canvas-wrapper-single');
+                    if (!wrapper || !this.canvasSingle) return;
+                    const rect = wrapper.getBoundingClientRect();
+                    let w = rect.width || wrapper.clientWidth || 300;
+                    let h = rect.height || wrapper.clientHeight || 300;
+                    const minDim = Math.max(200, Math.min(w - 8, h - 8));
+                    const dpr = window.devicePixelRatio || 1;
+
+                    this.canvasSingle.width = minDim * dpr;
+                    this.canvasSingle.height = minDim * dpr;
+                    this.canvasSingle.style.width = `${minDim}px`;
+                    this.canvasSingle.style.height = `${minDim}px`;
+                    this.cellSizeSingle = (minDim * dpr) / mazeSize;
+                } else {
+                    const wrapper = document.getElementById('canvas-wrapper-my');
+                    if (!wrapper || !this.canvasMy || !this.canvasOpp) return;
+                    const rect = wrapper.getBoundingClientRect();
+                    let w = rect.width || wrapper.clientWidth || 300;
+                    let h = rect.height || wrapper.clientHeight || 300;
+                    const minDim = Math.max(200, Math.min(w - 8, h - 8));
+                    const dpr = window.devicePixelRatio || 1;
+
+                    this.canvasMy.width = minDim * dpr;
+                    this.canvasMy.height = minDim * dpr;
+                    this.canvasMy.style.width = `${minDim}px`;
+                    this.canvasMy.style.height = `${minDim}px`;
+
+                    this.canvasOpp.width = minDim * dpr;
+                    this.canvasOpp.height = minDim * dpr;
+                    this.canvasOpp.style.width = `${minDim}px`;
+                    this.canvasOpp.style.height = `${minDim}px`;
+                    this.cellSize = (minDim * dpr) / mazeSize;
+                }
+            }
+
+            draw() {
+                const mazeSize = (this.maze && this.maze.length) ? this.maze.length : this.size;
+                const theme = THEMES.find(t => t.id === this.currentTheme) || THEMES[0];
+                const skinObj = SKINS.find(s => s.id === this.currentSkin) || SKINS[0];
+                const skinIcon = skinObj.icon;
+
+                if (!this.roomCode) {
+                    const cs = this.cellSizeSingle || (300 / mazeSize);
+                    this.player.px += (this.player.c * cs - this.player.px) * 0.3;
+                    this.player.py += (this.player.r * cs - this.player.py) * 0.3;
+                    this.drawMazeOnCanvas(this.ctxSingle, this.canvasSingle, theme, this.player, cs, mazeSize, skinIcon);
+                } else {
+                    const cs = this.cellSize || (300 / mazeSize);
+                    this.player.px += (this.player.c * cs - this.player.px) * 0.3;
+                    this.player.py += (this.player.r * cs - this.player.py) * 0.3;
+                    this.drawMazeOnCanvas(this.ctxMy, this.canvasMy, theme, this.player, cs, mazeSize, skinIcon);
+
+                    this.opponent.px += (this.opponent.c * cs - this.opponent.px) * 0.3;
+                    this.opponent.py += (this.opponent.r * cs - this.opponent.py) * 0.3;
+                    this.drawMazeOnCanvas(this.ctxOpp, this.canvasOpp, theme, this.opponent, cs, mazeSize, '🟢');
+                }
+            }
+
+            drawMazeOnCanvas(ctx, canvas, theme, avatar, cs, mazeSize, emoji) {
+                const w = canvas.width || 300;
+                const h = canvas.height || 300;
+
+                ctx.fillStyle = theme.bg;
+                ctx.fillRect(0, 0, w, h);
+                if (!this.maze || !this.maze.length) return;
+
+                ctx.strokeStyle = theme.wall;
+                ctx.lineWidth = Math.max(2, cs * 0.1);
+                ctx.lineCap = 'round';
+
+                for (let r = 0; r < mazeSize; r++) {
+                    if (!this.maze[r]) continue;
+                    for (let c = 0; c < mazeSize; c++) {
+                        const cell = this.maze[r][c];
+                        if (!cell) continue;
+                        const x = c * cs;
+                        const y = r * cs;
+
+                        ctx.fillStyle = theme.path;
+                        ctx.fillRect(x, y, cs, cs);
+
+                        ctx.beginPath();
+                        if (cell.walls[0]) { ctx.moveTo(x, y); ctx.lineTo(x + cs, y); }
+                        if (cell.walls[1]) { ctx.moveTo(x + cs, y); ctx.lineTo(x + cs, y + cs); }
+                        if (cell.walls[2]) { ctx.moveTo(x + cs, y + cs); ctx.lineTo(x, y + cs); }
+                        if (cell.walls[3]) { ctx.moveTo(x, y + cs); ctx.lineTo(x, y); }
+                        ctx.stroke();
+                    }
+                }
+
+                ctx.font = `${cs * 0.65}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🏁', (mazeSize - 1) * cs + cs / 2, (mazeSize - 1) * cs + cs / 2);
+
+                ctx.font = `${cs * 0.7}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(emoji, avatar.px + cs / 2, avatar.py + cs / 2);
+            }
+        }
+
+        function startApp() {
+            if (!window.game) {
+                window.game = new Game();
+                function loop() {
+                    if (window.game) window.game.draw();
+                    requestAnimationFrame(loop);
+                }
+                loop();
+            }
+        }
+
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            setTimeout(startApp, 50);
+        } else {
+            window.addEventListener('DOMContentLoaded', startApp);
+            window.addEventListener('load', startApp);
+        }
+    </script>
+</body>
+</html>
